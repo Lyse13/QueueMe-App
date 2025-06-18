@@ -385,7 +385,7 @@ function Welcome() {
             color: 'rgba(255, 255, 255, 0.6)',
             fontSize: '14px'
           }}>
-            <p>&copy; 2025 QueueMe. Revolutionizing queue management worldwide.</p>
+            <p>&copy; 2025 QueueMe. Revolutionizing queue management system.</p>
           </div>
         </footer>
       </div>

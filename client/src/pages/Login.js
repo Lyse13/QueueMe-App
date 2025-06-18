@@ -1,32 +1,37 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { login } from "../services/authService";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, type, value, checked } = e.target;
+    setForm({ ...form, [name]: type === "checkbox" ? checked : value });
+  };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setMessage("");
-  try {
-    const res = await login(form);
-    setMessage("Login successful! Redirecting...");
-    // Save token/user info as needed
-    localStorage.setItem("token", res.data.token);
-    // Redirect based on user role (example)
-    // You may want to decode the token or get user info from backend
-    setTimeout(() => navigate("/user"), 1500); // Change to /staff or /admin as needed
-  } catch (err) {
-    setMessage(
-      err.response?.data?.message || "Login failed. Please try again."
-    );
-  }
-};
+    e.preventDefault();
+    setMessage("");
+    try {
+      const res = await login({ email: form.email, password: form.password });
+      setMessage("Login successful! Redirecting...");
+
+      // Save token based on remember me
+      if (form.remember) {
+        localStorage.setItem("token", res.data.token);
+      } else {
+        sessionStorage.setItem("token", res.data.token);
+      }
+
+      // Redirect logic (adjust if needed)
+      setTimeout(() => navigate("/user"), 1500);
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Login failed. Please try again.");
+    }
+  };
 
   return (
     <div style={{
@@ -62,16 +67,7 @@ export default function Login() {
             value={form.email}
             onChange={handleChange}
             required
-            style={{
-              width: "100%",
-              marginBottom: 16,
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid #c084fc",
-              background: "rgba(255,255,255,0.12)",
-              color: "#fff",
-              fontSize: 16
-            }}
+            style={inputStyle}
           />
           <input
             name="password"
@@ -80,33 +76,37 @@ export default function Login() {
             value={form.password}
             onChange={handleChange}
             required
-            style={{
-              width: "100%",
-              marginBottom: 24,
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid #c084fc",
-              background: "rgba(255,255,255,0.12)",
-              color: "#fff",
-              fontSize: 16
-            }}
+            style={inputStyle}
           />
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: 14,
-              borderRadius: 12,
-              border: "none",
-              background: "linear-gradient(to right, #9333ea, #2563eb)",
-              color: "#fff",
-              fontWeight: 600,
-              fontSize: 16,
-              cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(59,130,246,0.15)",
-              marginBottom: 12
-            }}
-          >
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16
+          }}>
+            <label style={{ color: "#fff", fontSize: 14 }}>
+              <input
+                type="checkbox"
+                name="remember"
+                checked={form.remember}
+                onChange={handleChange}
+                style={{ marginRight: 8 }}
+              />
+              Remember me
+            </label>
+            <span
+              style={{
+                color: "#60a5fa",
+                cursor: "pointer",
+                textDecoration: "underline",
+                fontSize: 14
+              }}
+              onClick={() => navigate("/forgot-password")} // Placeholder route
+            >
+              Forgot password?
+            </span>
+          </div>
+          <button type="submit" style={buttonStyle}>
             Login
           </button>
         </form>
@@ -124,3 +124,28 @@ export default function Login() {
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  marginBottom: 16,
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid #c084fc",
+  background: "rgba(255,255,255,0.12)",
+  color: "#fff",
+  fontSize: 16
+};
+
+const buttonStyle = {
+  width: "100%",
+  padding: 14,
+  borderRadius: 12,
+  border: "none",
+  background: "linear-gradient(to right, #9333ea, #2563eb)",
+  color: "#fff",
+  fontWeight: 600,
+  fontSize: 16,
+  cursor: "pointer",
+  boxShadow: "0 4px 16px rgba(59,130,246,0.15)",
+  marginBottom: 12
+};

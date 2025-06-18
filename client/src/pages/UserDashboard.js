@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const services = [
   { value: "registration", label: "Registration", icon: "📝" },
@@ -21,8 +22,11 @@ export default function UserDashboard() {
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState({ name: "", email: "" });
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
+
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
@@ -37,7 +41,6 @@ export default function UserDashboard() {
     e.preventDefault();
     setMessage("");
 
-    // Temporary fake queue info
     setQueueInfo({
       ticket: Math.floor(Math.random() * 1000),
       position: Math.floor(Math.random() * 10) + 1,
@@ -48,30 +51,46 @@ export default function UserDashboard() {
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%)",
-      color: "#fff",
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      paddingBottom: 64
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%)",
+        color: "#fff",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        paddingBottom: 64,
+      }}
+    >
       {/* Top Banner */}
-      <div style={{ width: "100%", height: 200, backgroundImage: "url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d')", backgroundSize: "cover", backgroundPosition: "center", borderBottom: "4px solid #60a5fa" }} />
+      <div
+        style={{
+          width: "100%",
+          height: 200,
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          borderBottom: "4px solid #60a5fa",
+        }}
+      />
 
       {/* Main Frame */}
-      <div style={{
-        maxWidth: 900,
-        margin: "0 auto",
-        background: "rgba(255,255,255,0.06)",
-        borderRadius: 24,
-        boxShadow: "0 8px 32px rgba(59, 130, 246, 0.25)",
-        padding: 40,
-        marginTop: -80,
-        border: "1px solid rgba(255,255,255,0.15)",
-        backdropFilter: "blur(20px)"
-      }}>
-
+      <div
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          background: "rgba(255,255,255,0.06)",
+          borderRadius: 24,
+          boxShadow: "0 8px 32px rgba(59, 130, 246, 0.25)",
+          padding: 40,
+          marginTop: -80,
+          border: "1px solid rgba(255,255,255,0.15)",
+          backdropFilter: "blur(20px)",
+        }}
+      >
         <h2 style={{ textAlign: "center", marginBottom: 24 }}>User Dashboard</h2>
+
         <div style={{ marginBottom: 32 }}>
           <h3>Welcome, {profile.name || "..."}</h3>
           <p>Email: {profile.email || "..."}</p>
@@ -79,13 +98,15 @@ export default function UserDashboard() {
 
         {/* Service Cards */}
         <h4 style={{ marginBottom: 12 }}>Available Services</h4>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-          gap: 16,
-          marginBottom: 32
-        }}>
-          {services.map(service => (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+            gap: 16,
+            marginBottom: 32,
+          }}
+        >
+          {services.map((service) => (
             <div
               key={service.value}
               style={{
@@ -97,7 +118,7 @@ export default function UserDashboard() {
                 transition: "all 0.3s",
                 border: "1px solid #334155",
               }}
-              onClick={() => setSelectedService(service.value)}
+              onClick={() => navigate(`/service/${service.value}`)}
             >
               <div style={{ fontSize: 32 }}>{service.icon}</div>
               <div style={{ marginTop: 8 }}>{service.label}</div>
@@ -110,19 +131,21 @@ export default function UserDashboard() {
           <h4>Join a Queue</h4>
           <select
             value={selectedService}
-            onChange={e => setSelectedService(e.target.value)}
+            onChange={(e) => setSelectedService(e.target.value)}
             required
             style={{
               width: "100%",
               padding: 12,
               borderRadius: 8,
               marginBottom: 16,
-              fontSize: 16
+              fontSize: 16,
             }}
           >
             <option value="">Select Service</option>
-            {services.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
+            {services.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
             ))}
           </select>
           <button
@@ -136,7 +159,7 @@ export default function UserDashboard() {
               color: "#fff",
               fontWeight: 600,
               fontSize: 16,
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Join Queue
@@ -145,33 +168,66 @@ export default function UserDashboard() {
 
         {/* Queue Info */}
         {queueInfo && (
-          <div style={{
-            background: "rgba(255,255,255,0.12)",
-            borderRadius: 12,
-            padding: 20,
-            marginBottom: 24
-          }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.12)",
+              borderRadius: 12,
+              padding: 20,
+              marginBottom: 24,
+            }}
+          >
             <h4>Your Queue Info</h4>
-            <p>Service: <b>{services.find(s => s.value === queueInfo.service)?.label}</b></p>
-            <p>Ticket Number: <b>{queueInfo.ticket}</b></p>
-            <p>Current Position: <b>{queueInfo.position}</b></p>
-            <p>Estimated Wait Time: <b>{queueInfo.wait} min</b></p>
+            <p>
+              Service:{" "}
+              <b>
+                {services.find((s) => s.value === queueInfo.service)?.label}
+              </b>
+            </p>
+            <p>
+              Ticket Number: <b>{queueInfo.ticket}</b>
+            </p>
+            <p>
+              Current Position: <b>{queueInfo.position}</b>
+            </p>
+            <p>
+              Estimated Wait Time: <b>{queueInfo.wait} min</b>
+            </p>
           </div>
         )}
 
         {/* Notifications */}
         <div style={{ marginBottom: 24 }}>
-          <h4>Notifications</h4>
-          <p>(You will receive SMS or email notifications when your turn is near.)</p>
+          <h4
+            style={{ cursor: "pointer", color: "#93c5fd" }}
+            onClick={() => navigate("/notifications")}
+          >
+            Notifications
+          </h4>
+          <p>(Click to view your SMS or email notifications.)</p>
         </div>
 
         {/* Profile Management */}
         <div>
-          <h4>Profile Management</h4>
-          <p>(Feature coming soon: update your info, change password, etc.)</p>
+          <h4
+            style={{ cursor: "pointer", color: "#93c5fd" }}
+            onClick={() => navigate("/profile")}
+          >
+            Profile Management
+          </h4>
+          <p>(Click to update your info, change password, etc.)</p>
         </div>
 
-        {message && <p style={{ color: "#60a5fa", textAlign: "center", marginTop: 16 }}>{message}</p>}
+        {message && (
+          <p
+            style={{
+              color: "#60a5fa",
+              textAlign: "center",
+              marginTop: 16,
+            }}
+          >
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );
