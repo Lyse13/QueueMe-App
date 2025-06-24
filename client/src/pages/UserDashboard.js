@@ -1,33 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
-const services = [
-  { value: "registration", label: "Registration", icon: "📝" },
-  { value: "id_card", label: "ID Card", icon: "🆔" },
-  { value: "library", label: "Library", icon: "📚" },
-  { value: "exam_pass", label: "Take Exam Pass", icon: "🎫" },
-  { value: "update_receipt", label: "Update Receipt", icon: "🧾" },
-  { value: "pay_bills", label: "Pay Bills", icon: "💳" },
-  { value: "transcript", label: "Request Transcript", icon: "📄" },
-  { value: "hostel", label: "Hostel Allocation", icon: "🏠" },
-  { value: "course_reg", label: "Course Registration", icon: "📋" },
-  { value: "support", label: "Student Support", icon: "🤝" },
-  { value: "medical", label: "Medical Services", icon: "🏥" },
-  { value: "sports", label: "Sports Clearance", icon: "🏅" },
-];
+const API_URL = "http://localhost:3002/api";
 
 export default function UserDashboard() {
+  const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState("");
   const [queueInfo, setQueueInfo] = useState(null);
   const [message, setMessage] = useState("");
-  const [profile, setProfile] = useState({ name: "", email: "" });
+  const [profile, setProfile] = useState({ name: "", email: "", id: null });
 
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Fetch user profile from localStorage
     const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
+    if (storedUser && storedUser !== "undefined") {
       try {
         const user = JSON.parse(storedUser);
         setProfile(user);
@@ -35,19 +24,45 @@ export default function UserDashboard() {
         console.error("Invalid user data in localStorage", err);
       }
     }
-  }, []);
+    // Fetch services from backend
+    axios
+      .get(`${API_URL}/services`)
+      .then((res) => setServices(res.data))
+      .catch(() => {
+        setMessage("Failed to load services.");
+        setServices([]);
+      });
+  },   []);
 
-  const handleJoinQueue = (e) => {
+  const handleJoinQueue = async (e) => {
     e.preventDefault();
     setMessage("");
+    setQueueInfo(null);
 
-    setQueueInfo({
-      ticket: Math.floor(Math.random() * 1000),
-      position: Math.floor(Math.random() * 10) + 1,
-      wait: Math.floor(Math.random() * 20) + 5,
-      service: selectedService,
-    });
-    setMessage("You have joined the queue!");
+    if (!selectedService) {
+      setMessage("Please select a service.");
+      return;
+    }
+    if (!profile.id) {
+      setMessage("User ID not found. Please log in again.");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${API_URL}/queue/join`, {
+        user_id: profile.id,
+        service_id: selectedService,
+      });
+      setMessage(res.data.message || "You have joined the queue!");
+      setQueueInfo({
+        ticket: res.data.queue_id,
+        service: selectedService,
+      });
+    } catch (err) {
+      setMessage(
+        err.response?.data?.message || "Failed to join the queue. Try again."
+      );
+    }
   };
 
   return (
@@ -108,7 +123,7 @@ export default function UserDashboard() {
         >
           {services.map((service) => (
             <div
-              key={service.value}
+              key={service.id}
               style={{
                 background: "#1e293b",
                 borderRadius: 12,
@@ -118,10 +133,10 @@ export default function UserDashboard() {
                 transition: "all 0.3s",
                 border: "1px solid #334155",
               }}
-              onClick={() => navigate(`/service/${service.value}`)}
+              onClick={() => setSelectedService(service.id)}
             >
-              <div style={{ fontSize: 32 }}>{service.icon}</div>
-              <div style={{ marginTop: 8 }}>{service.label}</div>
+              <div style={{ fontSize: 32 }}>📝</div>
+              <div style={{ marginTop: 8 }}>{service.name}</div>
             </div>
           ))}
         </div>
@@ -143,8 +158,8 @@ export default function UserDashboard() {
           >
             <option value="">Select Service</option>
             {services.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </select>
@@ -180,17 +195,11 @@ export default function UserDashboard() {
             <p>
               Service:{" "}
               <b>
-                {services.find((s) => s.value === queueInfo.service)?.label}
+                {services.find((s) => s.id === Number(queueInfo.service))?.name}
               </b>
             </p>
             <p>
               Ticket Number: <b>{queueInfo.ticket}</b>
-            </p>
-            <p>
-              Current Position: <b>{queueInfo.position}</b>
-            </p>
-            <p>
-              Estimated Wait Time: <b>{queueInfo.wait} min</b>
             </p>
           </div>
         )}

@@ -9,6 +9,8 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use('/api/services', require('./routes/service'));
+app.use('/api/queue', require('./routes/queue'));
 
 app.get("/", (req, res) => { res.send("API running"); });
 

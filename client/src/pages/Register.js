@@ -11,19 +11,21 @@ export default function Register() {
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setMessage("");
-  try {
-    await register(form);
-    setMessage("Registration successful! You can now login.");
-    setTimeout(() => navigate("/login"), 1500);
-  } catch (err) {
-    setMessage(
-      err.response?.data?.message || "Registration failed. Please try again."
-    );
-  }
-};
-
+    e.preventDefault();
+    setMessage("");
+    try {
+      const res = await register(form);
+      // Save user info in localStorage
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      setMessage("Registration successful! You can now login.");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      setMessage(
+        err.response?.data?.message || "Registration failed. Please try again."
+      );
+   }
+  };
+ 
   return (
     <div style={{
       minHeight: "100vh",

@@ -19,14 +19,16 @@ export default function Login() {
       const res = await login({ email: form.email, password: form.password });
       setMessage("Login successful! Redirecting...");
 
+      // Save user info in localStorage
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+
       // Save token based on remember me
       if (form.remember) {
-        localStorage.setItem("token", res.data.token);
+      localStorage.setItem("token", res.data.token);
       } else {
         sessionStorage.setItem("token", res.data.token);
       }
 
-      // Redirect logic (adjust if needed)
       setTimeout(() => navigate("/user"), 1500);
     } catch (err) {
       setMessage(err.response?.data?.message || "Login failed. Please try again.");
