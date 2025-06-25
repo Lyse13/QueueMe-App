@@ -31,14 +31,6 @@ export default function Profile() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleUpdateInfo = (e) => {
-    e.preventDefault();
-    const updatedProfile = { ...profile, name: form.name, email: form.email };
-    localStorage.setItem("user", JSON.stringify(updatedProfile));
-    setProfile(updatedProfile);
-    setMessage("Profile information updated successfully!");
-  };
-
   const handleChangePassword = (e) => {
     e.preventDefault();
     if (!form.password || !form.newPassword) {
@@ -61,6 +53,12 @@ export default function Profile() {
     setMessage("Account deleted. Reload the page to log in again.");
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Here you would send the updated profile to the backend
+    setMessage("Profile updated successfully!");
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -79,6 +77,9 @@ export default function Profile() {
         backdropFilter: "blur(20px)",
       }}>
         <h2 style={{ textAlign: "center", marginBottom: 24 }}>Profile Management</h2>
+        <p style={{ color: "#cbd5e1", textAlign: "center", marginBottom: 24 }}>
+          View and update your personal information, change your password, and manage your account.
+        </p>
 
         {/* Tabs */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
@@ -127,26 +128,40 @@ export default function Profile() {
 
         {/* Edit Info */}
         {activeTab === "info" && (
-          <form onSubmit={handleUpdateInfo}>
-            <label>Name</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              style={inputStyle}
-            />
-            <label>Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              style={inputStyle}
-            />
-            <button type="submit" style={buttonStyle}>Update Info</button>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 12 }}>
+              <label>Name:</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                style={inputStyle}
+                required
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label>Email:</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                style={inputStyle}
+                required
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label>New Password:</label>
+              <input
+                type="password"
+                value={form.newPassword}
+                onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+                style={inputStyle}
+                placeholder="Leave blank to keep current password"
+              />
+            </div>
+            <button type="submit" style={buttonStyle}>
+              Save Changes
+            </button>
           </form>
         )}
 

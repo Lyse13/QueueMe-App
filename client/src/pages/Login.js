@@ -17,6 +17,12 @@ export default function Login() {
     setMessage("");
     try {
       const res = await login({ email: form.email, password: form.password });
+
+      if (!res.data || !res.data.user) {
+        setMessage("Login failed: Invalid response from server.");
+        return;
+      }
+
       setMessage("Login successful! Redirecting...");
 
       // Save user info in localStorage
@@ -24,14 +30,28 @@ export default function Login() {
 
       // Save token based on remember me
       if (form.remember) {
-      localStorage.setItem("token", res.data.token);
+        localStorage.setItem("token", res.data.token);
       } else {
         sessionStorage.setItem("token", res.data.token);
       }
 
-      setTimeout(() => navigate("/user"), 1500);
+      // Redirect based on role
+      if (res.data.user.role === "admin") {
+        navigate("/admin");
+      } else if (res.data.user.role === "staff") {
+        navigate("/staff");
+      } else {
+        navigate("/user");
+      }
     } catch (err) {
-      setMessage(err.response?.data?.message || "Login failed. Please try again.");
+      console.error("Login error:", err);
+      if (err.response && err.response.data && err.response.data.message) {
+        setMessage(err.response.data.message);
+      } else if (err.message) {
+        setMessage(err.message);
+      } else {
+        setMessage("Login failed. Please try again.");
+      }
     }
   };
 
@@ -112,7 +132,20 @@ export default function Login() {
             Login
           </button>
         </form>
-        {message && <p style={{ color: "#c084fc", textAlign: "center" }}>{message}</p>}
+        {message && (
+          <p
+            style={{
+              color:
+                (typeof message === "object" && message.color === "red") ||
+                (typeof message === "string" && message.toLowerCase().includes("fail"))
+                  ? "red"
+                  : "#c084fc",
+              textAlign: "center",
+            }}
+          >
+            {typeof message === "object" ? message.message : message}
+          </p>
+        )}
         <p style={{ color: "#fff", textAlign: "center", marginTop: 16 }}>
           Don&apos;t have an account?{" "}
           <span

@@ -52,11 +52,24 @@ exports.login = (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials", color: "red" });
 
+    // Always return token and user object
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET || "yoursecret",
       { expiresIn: "1d" }
     );
+
+    // Debug log to verify response structure
+    console.log("Login success:", {
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+
     res.json({
       token,
       user: {
@@ -112,4 +125,3 @@ exports.resetPassword = (req, res) => {
     });
   });
 };
-// No changes needed here. Update your frontend to use the `color` property in the response.
