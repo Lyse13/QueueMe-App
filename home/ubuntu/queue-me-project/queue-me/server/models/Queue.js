@@ -24,6 +24,7 @@ const Queue = {
       callback(null, results);
     });
   },
+  
   findByServiceId: (service_id, callback) => {
     db.query("SELECT q.*, u.name as customerName, s.name as serviceName FROM queues q JOIN users u ON q.user_id = u.id JOIN services s ON q.service_id = s.id WHERE q.service_id = ? AND q.status = \"waiting\" ORDER BY q.joined_at ASC", [service_id], (err, results) => {
       if (err) return callback(err);
@@ -35,11 +36,16 @@ const Queue = {
   },
   updateServiceQueueStatus: (serviceId, status, callback) => {
     // This would typically pause new entries to the queue for a service
-    // For simplicity, we'll just log it here.
+    // For simplicity, we\\\\'ll just log it here.
     console.log(`Service ${serviceId} queue status updated to ${status}`);
     callback(null, { message: `Service ${serviceId} queue status updated to ${status}` });
-  }
+  },
+  countWaitingByServiceId: (serviceId, callback) => {
+    db.query("SELECT COUNT(*) as count FROM queues WHERE service_id = ? AND status IN (\"waiting\", \"serving\")", [serviceId], (err, results) => {
+      if (err) return callback(err);
+      callback(null, results[0].count);
+    });
+  },
 };
 
 module.exports = Queue;
-

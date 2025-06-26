@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Profile from "./Profile";
@@ -8,7 +8,7 @@ import History from "./History";
 import Settings from "./Settings";
 import MyQueue from "./MyQueue";
 import RateService from "./RateService";
-import Home from "./Home"; // Import the Home component
+import Home from "./Home";
 
 const API_URL = "http://localhost:3002/api";
 
@@ -25,17 +25,65 @@ const menuItems = [
   { key: "logout", label: "Logout", icon: "🚪" },
 ];
 
-export default function UserDashboard() {
+export default function UserDashboard( ) {
   const [services, setServices] = useState([]);
-  const [selectedService, setSelectedService] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
   const [queueInfo, setQueueInfo] = useState(null);
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState({ name: "", email: "", id: null });
   const [activeMenu, setActiveMenu] = useState("home");
   const navigate = useNavigate();
 
+  const fetchServices = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      if (!token) {
+        setMessage("Authentication required. Please log in.");
+        navigate("/login");
+        return;
+      }
+      const res = await axios.get(`${API_URL}/services`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Ensure services is always an array
+      setServices(Array.isArray(res.data.services) ? res.data.services : []);
+      setMessage("");
+    } catch (err) {
+      console.error("Error fetching services:", err);
+      setMessage(
+        err.response?.data?.message || "Failed to load services. Please try again later."
+      );
+      setServices([]); // Ensure it's an empty array on error
+    }
+  }, [navigate]);
+
+  const fetchQueueStatus = useCallback(async () => {
+    const storedQueueEntry = localStorage.getItem("currentQueueEntry");
+    if (storedQueueEntry) {
+      try {
+        const parsedEntry = JSON.parse(storedQueueEntry);
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+        if (!token) {
+          setMessage("Authentication required. Please log in.");
+          navigate("/login");
+          return;
+        }
+        const res = await axios.get(`${API_URL}/queue/status/${parsedEntry.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setQueueInfo(res.data.queueEntry);
+      } catch (err) {
+        console.error("Error fetching queue status:", err);
+        setMessage("Failed to load queue status.");
+        localStorage.removeItem("currentQueueEntry"); // Clear invalid entry
+        setQueueInfo(null);
+      }
+    } else {
+      setQueueInfo(null);
+    }
+  }, [navigate]);
+
   useEffect(() => {
-    // Fetch user profile from localStorage
     const storedUser = localStorage.getItem("user");
     if (storedUser && storedUser !== "undefined") {
       try {
@@ -43,39 +91,30 @@ export default function UserDashboard() {
         setProfile(user);
       } catch (err) {
         console.error("Invalid user data in localStorage", err);
+        localStorage.removeItem("user");
+        navigate("/login");
       }
-    }
-    // Fetch services from backend
-    axios
-      .get(`${API_URL}/services`)
-      .then((res) => setServices(res.data))
-      .catch((error) => {
-    // Log detailed error information for debugging
-    if (error.response) {
-      // Server responded with a status code outside 2xx
-      console.error("Error response data:", error.response.data);
-      console.error("Error response status:", error.response.status);
-      console.error("Error response headers:", error.response.headers);
-    } else if (error.request) {
-      // Request was made but no response received
-      console.error("Error request:", error.request);
     } else {
-      // Something else happened while setting up the request
-      console.error("Error message:", error.message);
+      navigate("/login");
     }
-    setMessage("Failed to load services.");
-    setServices([]);
-  });
 
-  }, []);
+    fetchServices();
+    fetchQueueStatus();
+
+    const interval = setInterval(() => {
+      fetchQueueStatus();
+      fetchServices(); // Refresh services to get updated queue lengths
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchServices, fetchQueueStatus, navigate]);
 
   const handleJoinQueue = async (e) => {
     e.preventDefault();
     setMessage("");
-    setQueueInfo(null);
 
-    if (!selectedService) {
-      setMessage("Please select a service.");
+    if (!selectedServiceId) {
+      setMessage("Please select a service to join.");
       return;
     }
     if (!profile.id) {
@@ -84,23 +123,50 @@ export default function UserDashboard() {
     }
 
     try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       const res = await axios.post(`${API_URL}/queue/join`, {
         user_id: profile.id,
-        service_id: selectedService,
+        service_id: selectedServiceId,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
       });
       setMessage(res.data.message || "You have joined the queue!");
-      setQueueInfo({
-        ticket: res.data.queue_id,
-        service: selectedService,
-      });
+      setQueueInfo(res.data.queueEntry);
+      localStorage.setItem("currentQueueEntry", JSON.stringify(res.data.queueEntry));
+      setActiveMenu("queue"); // Navigate to My Queue after joining
     } catch (err) {
+      console.error("Error joining queue:", err);
       setMessage(
-        err.response?.data?.message || "Failed to join the queue. Try again."
+        err.response?.data?.message || "Failed to join the queue. Please try again."
       );
     }
   };
 
-  // Sidebar logout handler
+  const handleLeaveQueue = async () => {
+    if (!queueInfo || !queueInfo.id) {
+      setMessage("You are not currently in a queue.");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      await axios.post(`${API_URL}/queue/leave`, {
+        queue_entry_id: queueInfo.id,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessage("You have successfully left the queue.");
+      setQueueInfo(null);
+      localStorage.removeItem("currentQueueEntry");
+      fetchServices(); // Refresh services to update queue lengths
+    } catch (err) {
+      console.error("Error leaving queue:", err);
+      setMessage(
+        err.response?.data?.message || "Failed to leave the queue. Please try again."
+      );
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -108,7 +174,6 @@ export default function UserDashboard() {
     navigate("/login");
   };
 
-  // Responsive sidebar toggle (for mobile)
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -116,7 +181,7 @@ export default function UserDashboard() {
       {/* Sidebar */}
       <nav
         style={{
-           width: 300,
+          width: 300,
           background: "#1e293b",
           color: "#fff",
           transition: "width 0.2s",
@@ -154,7 +219,6 @@ export default function UserDashboard() {
               marginBottom: 12,
             }}
           >
-            {/* User avatar icon */}
             <span role="img" aria-label="User">
               👤
             </span>
@@ -282,39 +346,57 @@ export default function UserDashboard() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-                gap: 16,
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 24,
                 marginBottom: 32,
               }}
             >
-              {services.map((service) => (
-                <div
-                  key={service.id}
-                  style={{
-                    background: "#1e293b",
-                    borderRadius: 12,
-                    padding: 16,
-                    textAlign: "center",
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                    border: "1px solid #334155",
-                  }}
-                  onClick={() => setSelectedService(service.id)}
-                >
-                  <div style={{ fontSize: 32 }}>{service.icon || "📝"}</div>
-                  <div style={{ marginTop: 8 }}>{service.name}</div>
-                  <div style={{ color: "#93c5fd", fontSize: 13, marginTop: 4 }}>
-                    {service.description}
+              {services.length > 0 ? (
+                services.map((service) => (
+                  <div
+                    key={service.id}
+                    style={{
+                      background: "#1e293b",
+                      borderRadius: 12,
+                      padding: 24,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      transition: "all 0.3s",
+                      border: selectedServiceId === service.id ? "2px solid #60a5fa" : "1px solid #334155",
+                      boxShadow: selectedServiceId === service.id ? "0 0 15px rgba(96, 165, 250, 0.5)" : "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                    }}
+                    onClick={() => setSelectedServiceId(service.id)}
+                  >
+                    <div>
+                      <div style={{ fontSize: 48, marginBottom: 12 }}>{service.icon || "📝"}</div>
+                      <h4 style={{ color: "#fff", fontSize: 20, marginBottom: 8 }}>{service.name}</h4>
+                      <p style={{ color: "#cbd5e1", fontSize: 14, lineHeight: 1.5 }}>
+                        {service.description}
+                      </p>
+                    </div>
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #334155" }}>
+                      <p style={{ color: "#93c5fd", fontSize: 14, marginBottom: 4 }}>
+                        <span role="img" aria-label="Time">⏱️</span> Est. Time: {service.estimatedTime || 15} mins
+                      </p>
+                      <p style={{ color: "#93c5fd", fontSize: 14 }}>
+                        <span role="img" aria-label="Queue">👥</span> Current Queue: {service.currentQueueLength !== undefined ? service.currentQueueLength : "N/A"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p style={{ color: "#cbd5e1", fontSize: 16 }}>No services available at the moment.</p>
+              )}
             </div>
             {/* Join Queue */}
-            <form onSubmit={handleJoinQueue} style={{ marginBottom: 32 }}>
-              <h4>Join a Queue</h4>
+            <form onSubmit={handleJoinQueue} style={{ marginBottom: 32, background: "#1e293b", padding: 24, borderRadius: 12, border: "1px solid #334155" }}>
+              <h4 style={{ color: "#fff", marginBottom: 16, fontSize: 20 }}>Join a Queue</h4>
               <select
-                value={selectedService}
-                onChange={(e) => setSelectedService(e.target.value)}
+                value={selectedServiceId}
+                onChange={(e) => setSelectedServiceId(e.target.value)}
                 required
                 style={{
                   width: "100%",
@@ -322,27 +404,32 @@ export default function UserDashboard() {
                   borderRadius: 8,
                   marginBottom: 16,
                   fontSize: 16,
+                  background: "#0f172a",
+                  color: "#fff",
+                  border: "1px solid #334155",
                 }}
               >
                 <option value="">Select Service</option>
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name}
+                    {s.name} ({s.currentQueueLength !== undefined ? s.currentQueueLength : "N/A"} in queue)
                   </option>
                 ))}
               </select>
               <button
                 type="submit"
+                disabled={!selectedServiceId}
                 style={{
                   width: "100%",
                   padding: 12,
                   borderRadius: 8,
                   border: "none",
-                  background: "linear-gradient(to right, #3b82f6, #1e3a8a)",
+                  background: selectedServiceId ? "linear-gradient(to right, #3b82f6, #1e3a8a)" : "#4a5568",
                   color: "#fff",
                   fontWeight: 600,
                   fontSize: 16,
-                  cursor: "pointer",
+                  cursor: selectedServiceId ? "pointer" : "not-allowed",
+                  opacity: selectedServiceId ? 1 : 0.7,
                 }}
               >
                 Join Queue
@@ -351,7 +438,9 @@ export default function UserDashboard() {
           </div>
         )}
 
-        {activeMenu === "queue" && <MyQueue queueInfo={queueInfo} />}
+        {activeMenu === "queue" && (
+          <MyQueue queueInfo={queueInfo} onLeaveQueue={handleLeaveQueue} />
+        )}
 
         {activeMenu === "profile" && (
           <div>
@@ -387,6 +476,10 @@ export default function UserDashboard() {
               color: "#60a5fa",
               textAlign: "center",
               marginTop: 16,
+              background: "#1e293b",
+              padding: "12px 20px",
+              borderRadius: 8,
+              border: "1px solid #334155",
             }}
           >
             {message}

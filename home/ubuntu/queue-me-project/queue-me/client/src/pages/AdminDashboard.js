@@ -21,6 +21,8 @@ const AdminDashboard = () => {
     password: "",
     role: "user"
   });
+
+  // eslint-disable-next-line no-unused-vars
    const [editingUser, setEditingUser] = useState(null);
 
   // Service Management State
