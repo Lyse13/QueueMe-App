@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  mysql_db:
+    image: mysql:8.0
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: lysette@21
+      MYSQL_DATABASE: queue_me
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: queue-me-backend
+    ports:
+      - "3002:3002"
+    environment:
+      DB_HOST: mysql_db
+      DB_USER: root
+      DB_PASSWORD: lysette@21
+      DB_NAME: queue_me
+      JWT_SECRET: yoursecret
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: queue-me-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+

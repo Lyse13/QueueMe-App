@@ -1,0 +1,96 @@
+pipeline {
+    agent any
+
+    environment {
+        // Replace with your Docker Hub username or image registry
+        DOCKER_REGISTRY = 'your-dockerhub-username'
+        // Replace with your Kubernetes context if needed
+        KUBECONFIG_CREDENTIAL_ID = 'your-kubeconfig-credential-id' // Jenkins credential ID for kubeconfig
+    }
+
+    stages {
+        stage('Checkout Source') {
+            steps {
+                // Assuming your source code is in a Git repository
+                git branch: 'main', url: 'https://github.com/your-repo/queue-me.git'
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            steps {
+                script {
+                    // Build the frontend Docker image
+                    sh "docker build -t ${DOCKER_REGISTRY}/queue-me-frontend:latest -f queue-me-project/Dockerfile.client ."
+                }
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                script {
+                    // Build the backend Docker image
+                    sh "docker build -t ${DOCKER_REGISTRY}/queue-me-backend:latest -f queue-me-project/Dockerfile.server ."
+                }
+            }
+        }
+
+        stage('Run Unit Tests') {
+            steps {
+                script {
+                    // Placeholder for running unit tests
+                    // You would typically run tests inside the respective service directories
+                    // For example:
+                    // sh "docker run --rm ${DOCKER_REGISTRY}/queue-me-backend:latest npm test"
+                    // sh "docker run --rm ${DOCKER_REGISTRY}/queue-me-frontend:latest npm test"
+                    echo 'Running unit tests... (Placeholder)'
+                }
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                script {
+                    // Login to Docker Registry (if private)
+                    // withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    //     sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                    // }
+                    
+                    // Push frontend and backend images
+                    sh "docker push ${DOCKER_REGISTRY}/queue-me-frontend:latest"
+                    sh "docker push ${DOCKER_REGISTRY}/queue-me-backend:latest"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    // Apply Kubernetes manifests
+                    // Ensure your Jenkins agent has kubectl configured and access to the cluster
+                    // You might need to configure a Kubernetes Cloud in Jenkins or use kubeconfig directly
+                    withKubeConfig(credentialsId: env.KUBECONFIG_CREDENTIAL_ID) {
+                        sh "kubectl apply -f queue-me-project/kubernetes/mysql-deployment.yaml"
+                        sh "kubectl apply -f queue-me-project/kubernetes/mysql-service.yaml"
+                        sh "kubectl apply -f queue-me-project/kubernetes/backend-deployment.yaml"
+                        sh "kubectl apply -f queue-me-project/kubernetes/backend-service.yaml"
+                        sh "kubectl apply -f queue-me-project/kubernetes/frontend-deployment.yaml"
+                        sh "kubectl apply -f queue-me-project/kubernetes/frontend-service.yaml"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished.'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
+
